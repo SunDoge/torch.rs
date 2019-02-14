@@ -1,13 +1,29 @@
-use torch_sys::root::*;
+use torch_sys::*;
+use std::marker::PhantomData;
 
-pub struct Tensor {
-    base: at::Tensor
+pub struct Tensor<T> {
+    ptr: *mut at_TensorImpl,
+    phantom: PhantomData<T>
 }
 
-impl Tensor {
-    pub fn new() -> Tensor {
+pub trait TensorNew<T> {
+    fn new() -> Tensor<T>;
+}
+
+impl TensorNew<f32> for Tensor<f32> {
+    fn new() -> Tensor<f32> {
         Tensor {
-            base: unsafe {at::Tensor::new()}
+            ptr: unsafe {THFloatTensor_new()},
+            phantom: PhantomData
+        }
+    }
+}
+
+impl TensorNew<f64> for Tensor<f64> {
+    fn new() -> Tensor<f64> {
+        Tensor {
+            ptr: unsafe {THDoubleTensor_new()},
+            phantom: PhantomData
         }
     }
 }
@@ -15,11 +31,13 @@ impl Tensor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use torch_sys::root::*;
+    #[test]
+    fn new_float_tensor() {
+        let _t = Tensor::<f32>::new();
+    }
 
     #[test]
-    fn new_empty_tensor() {
-        // let _t = Tensor::new();
-        let _t = unsafe {at::ones()}
+    fn new_double_tensor() {
+        let _t = Tensor::<f64>::new();
     }
 }
