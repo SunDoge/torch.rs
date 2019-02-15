@@ -1,3 +1,5 @@
+#![feature(concat_idents)]
+
 pub mod tensor;
 
 #[cfg(test)]
