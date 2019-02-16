@@ -1,5 +1,42 @@
-
-
 // pub struct TensorTypeId {
-//     type_id: 
+//     type_id:
 // }
+
+pub enum TypeID {
+    CPUByte,
+    CPUChar,
+    CPUDouble,
+    CPUFloat,
+    CPUInt,
+    CPULong,
+    CPUShort,
+    CPUHalf,
+    SparseCPUByte,
+    SparseCPUChar,
+    SparseCPUDouble,
+    SparseCPUFloat,
+    SparseCPUInt,
+    SparseCPULong,
+    SparseCPUShort,
+    CUDAByte,
+    CUDAChar,
+    CUDADouble,
+    CUDAFloat,
+    CUDAInt,
+    CUDALong,
+    CUDAShort,
+    CUDAHalf,
+    SparseCUDAByte,
+    SparseCUDAChar,
+    SparseCUDADouble,
+    SparseCUDAFloat,
+    SparseCUDAInt,
+    SparseCUDALong,
+    SparseCUDAShort,
+    CPUComplexFloat,
+    CPUComplexDouble,
+    CUDAComplexFloat,
+    CUDAComplexDouble,
+    Undefined,
+    NumOptions,
+}

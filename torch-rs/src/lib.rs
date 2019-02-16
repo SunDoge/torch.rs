@@ -1,7 +1,7 @@
 #![feature(concat_idents)]
 
-pub mod tensor;
 pub mod storage;
+pub mod tensor;
 
 #[cfg(test)]
 mod tests {

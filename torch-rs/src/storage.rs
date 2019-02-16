@@ -1,8 +1,7 @@
+use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
-use std::cell::RefCell;
 use torch_sys::*;
-
 
 /// FloatStorageImpl: StorageImpl
 /// DoubleStorageImpl: TensorImpl
@@ -55,7 +54,6 @@ macro_rules! impl_Storage_impl {
             }
         }
 
-
         impl $name {
             pub fn new() -> Self {
                 $name {
@@ -65,7 +63,7 @@ macro_rules! impl_Storage_impl {
         }
 
         // impl StorageGeneric<$type> for Storage<$type> {
-           
+
         // }
     };
 }
@@ -76,5 +74,5 @@ impl_Storage_impl!(DoubleStorageImpl, THDoubleStorage, f64);
 #[cfg(test)]
 mod tests {
     use super::*;
-   
+
 }
