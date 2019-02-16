@@ -87,7 +87,7 @@ fn main() {
         // .blacklist_type("max_align_t")
         // .blacklist_item("FP_.*")
         // .whitelist_type("TH.*")
-        .whitelist_function("TH.*")
+        .whitelist_function(".*TH.*")
         .header("wrapper.h")
         // Finish the builder and generate the bindings.
         .generate()

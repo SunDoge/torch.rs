@@ -60,7 +60,7 @@ pub trait TensorGeneric<T> {
 //
 // Rust has no f16 and some other types,
 // so we have to use different struct.
-macro_rules! impl_tensor_impl {
+macro_rules! impl_tensor {
     ($prefix:ident, $impl_name:ident, $tensor_name:ident, $type_name:ident, $type:ident) => {
         pub type $type_name = $type;
         pub type $tensor_name = Tensor<$type_name>;
@@ -181,18 +181,19 @@ macro_rules! impl_tensor_impl {
 /// struct FloatTensorImpl {}
 /// type Float = f32;
 /// type FloatTensor = Tensor<Float>;
-impl_tensor_impl!(THHalfTensor_, HalfTensorImpl, HalfTensor, Half, c10_Half);
-impl_tensor_impl!(THFloatTensor_, FloatTensorImpl, FloatTensor, Float, f32);
-impl_tensor_impl!(THDoubleTensor_, DoubleTensorImpl, DoubleTensor, Double, f64);
-impl_tensor_impl!(THByteTensor_, ByteTensorImpl, ByteTensor, Byte, u8);
-impl_tensor_impl!(THCharTensor_, CharTensorImpl, CharTensor, Char, i8);
-impl_tensor_impl!(THIntTensor_, IntTensorImpl, IntTensor, Int, i32);
-impl_tensor_impl!(THLongTensor_, LongTensorImpl, LongTensor, Long, i64);
-impl_tensor_impl!(THShortTensor_, ShortTensorImpl, ShortTensor, Short, i16);
+impl_tensor!(THHalfTensor_, HalfTensorImpl, HalfTensor, Half, c10_Half);
+impl_tensor!(THFloatTensor_, FloatTensorImpl, FloatTensor, Float, f32);
+impl_tensor!(THDoubleTensor_, DoubleTensorImpl, DoubleTensor, Double, f64);
+impl_tensor!(THByteTensor_, ByteTensorImpl, ByteTensor, Byte, u8);
+impl_tensor!(THCharTensor_, CharTensorImpl, CharTensor, Char, i8);
+impl_tensor!(THIntTensor_, IntTensorImpl, IntTensor, Int, i32);
+impl_tensor!(THLongTensor_, LongTensorImpl, LongTensor, Long, i64);
+impl_tensor!(THShortTensor_, ShortTensorImpl, ShortTensor, Short, i16);
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn new_float_tensor() {
         let _t = Tensor::<Float>::new();

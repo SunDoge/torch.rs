@@ -3,4 +3,6 @@
 Cargo.lock
 .vscode/
 torch
+pytorch
 .mypy_cache/
+.idea/
