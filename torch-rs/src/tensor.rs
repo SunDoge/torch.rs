@@ -2,6 +2,7 @@ pub mod op;
 pub mod type_id;
 
 use std::cell::RefCell;
+use std::marker::PhantomData;
 use std::rc::Rc;
 use torch_sys::*;
 
@@ -14,10 +15,11 @@ pub trait TensorImpl {
 }
 
 pub struct Tensor<T> {
-    tensor_impl: Rc<RefCell<T>>,
+    tensor_impl: Rc<RefCell<TensorImpl>>,
+    phantom: PhantomData<T>,
 }
 
-impl<T: TensorImpl> Tensor<T> {
+impl<T> Tensor<T> {
     fn as_ptr(&self) -> *const at_TensorImpl {
         self.tensor_impl.borrow().as_ptr()
     }
@@ -32,9 +34,14 @@ pub trait TensorGeneric<T> {
     // fn storage() ->
     fn is_contiguous(&self) -> bool;
 
+    // access methods
+    fn storage_offset(&self) -> isize;
+
     // Props
     fn dim(&self) -> i32;
     fn size(&self, dim: i32) -> i64;
+    fn stride(&self, dim: i32) -> i64;
+    fn data(&self) -> *mut T;
 }
 
 // The reason why defining different types TensorImpl is that
@@ -43,12 +50,15 @@ pub trait TensorGeneric<T> {
 // Rust has no f16 and some other types,
 // so we have to use different struct.
 macro_rules! impl_tensor_impl {
-    ($name:ident, $prefix:ident) => {
-        pub struct $name {
+    ($prefix:ident, $impl_name:ident, $tensor_name:ident, $type_name:ident, $type:ident) => {
+        pub type $type_name = $type;
+        pub type $tensor_name = Tensor<$type_name>;
+
+        pub struct $impl_name {
             tensor_impl: *mut at_TensorImpl,
         }
 
-        impl TensorImpl for $name {
+        impl TensorImpl for $impl_name {
             fn as_ptr(&self) -> *const at_TensorImpl {
                 self.tensor_impl as *const at_TensorImpl
             }
@@ -58,7 +68,7 @@ macro_rules! impl_tensor_impl {
             }
         }
 
-        impl Drop for $name {
+        impl Drop for $impl_name {
             fn drop(&mut self) {
                 unsafe {
                     concat_idents!($prefix, free)(self.as_mut_ptr());
@@ -66,9 +76,9 @@ macro_rules! impl_tensor_impl {
             }
         }
 
-        impl $name {
+        impl $impl_name {
             pub fn new() -> Self {
-                $name {
+                $impl_name {
                     tensor_impl: unsafe { concat_idents!($prefix, new)() },
                 }
             }
@@ -93,16 +103,21 @@ macro_rules! impl_tensor_impl {
         //     }
         // }
 
-        impl TensorGeneric<$name> for Tensor<$name> {
-            fn new() -> Tensor<$name> {
+        impl TensorGeneric<$type_name> for Tensor<$type_name> {
+            fn new() -> Tensor<$type_name> {
                 Tensor {
-                    tensor_impl: Rc::new(RefCell::new($name::new())),
+                    tensor_impl: Rc::new(RefCell::new($impl_name::new())),
+                    phantom: PhantomData,
                 }
             }
 
             fn is_contiguous(&self) -> bool {
                 let ret = unsafe { concat_idents!($prefix, isContiguous)(self.as_ptr()) };
                 ret == 1
+            }
+
+            fn storage_offset(&self) -> isize {
+                unsafe { concat_idents!($prefix, storageOffset)(self.as_ptr()) }
             }
 
             fn dim(&self) -> i32 {
@@ -112,18 +127,29 @@ macro_rules! impl_tensor_impl {
             fn size(&self, dim: i32) -> i64 {
                 unsafe { concat_idents!($prefix, size)(self.as_ptr(), dim) }
             }
+
+            fn stride(&self, dim: i32) -> i64 {
+                unsafe { concat_idents!($prefix, stride)(self.as_ptr(), dim) }
+            }
+
+            fn data(&self) -> *mut $type_name {
+                unsafe { concat_idents!($prefix, data)(self.as_ptr()) }
+            }
         }
     };
 }
 
-impl_tensor_impl!(Half, THHalfTensor_);
-impl_tensor_impl!(Float, THFloatTensor_);
-impl_tensor_impl!(Double, THDoubleTensor_);
-impl_tensor_impl!(Byte, THByteTensor_);
-impl_tensor_impl!(Char, THCharTensor_);
-impl_tensor_impl!(Int, THIntTensor_);
-impl_tensor_impl!(Long, THLongTensor_);
-impl_tensor_impl!(Short, THShortTensor_);
+/// struct FloatTensorImpl {}
+/// type Float = f32;
+/// type FloatTensor = Tensor<Float>;
+impl_tensor_impl!(THHalfTensor_, HalfTensorImpl, HalfTensor, Half, c10_Half);
+impl_tensor_impl!(THFloatTensor_, FloatTensorImpl, FloatTensor, Float, f32);
+impl_tensor_impl!(THDoubleTensor_, DoubleTensorImpl, DoubleTensor, Double, f64);
+impl_tensor_impl!(THByteTensor_, ByteTensorImpl, ByteTensor, Byte, u8);
+impl_tensor_impl!(THCharTensor_, CharTensorImpl, CharTensor, Char, i8);
+impl_tensor_impl!(THIntTensor_, IntTensorImpl, IntTensor, Int, i32);
+impl_tensor_impl!(THLongTensor_, LongTensorImpl, LongTensor, Long, i64);
+impl_tensor_impl!(THShortTensor_, ShortTensorImpl, ShortTensor, Short, i16);
 
 #[cfg(test)]
 mod tests {

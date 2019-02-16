@@ -86,6 +86,7 @@ fn main() {
         // https://github.com/servo/rust-bindgen/issues/550
         // .blacklist_type("max_align_t")
         // .blacklist_item("FP_.*")
+        // .whitelist_type("TH.*")
         .whitelist_function("TH.*")
         .header("wrapper.h")
         // Finish the builder and generate the bindings.
