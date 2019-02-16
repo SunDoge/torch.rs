@@ -3,6 +3,7 @@ pub mod type_id;
 
 use std::cell::RefCell;
 use std::marker::PhantomData;
+use std::ptr;
 use std::rc::Rc;
 use torch_sys::*;
 
@@ -10,7 +11,10 @@ use torch_sys::*;
 /// DoubleTensorImpl: TensorImpl
 /// Tensor(impl TensorImpl)
 pub trait TensorImpl {
-    fn as_ptr(&self) -> *const at_TensorImpl;
+    /// This fn should return *const at_TensorImpl,
+    /// but c functions accept *mut as *const,
+    /// so for convinent, just return *mut at_Tensor, but using &self
+    fn as_ptr(&self) -> *mut at_TensorImpl;
     fn as_mut_ptr(&mut self) -> *mut at_TensorImpl;
 }
 
@@ -20,7 +24,7 @@ pub struct Tensor<T> {
 }
 
 impl<T> Tensor<T> {
-    fn as_ptr(&self) -> *const at_TensorImpl {
+    fn as_ptr(&self) -> *mut at_TensorImpl {
         self.tensor_impl.borrow().as_ptr()
     }
 
@@ -30,18 +34,25 @@ impl<T> Tensor<T> {
 }
 
 pub trait TensorGeneric<T> {
-    fn new() -> Tensor<T>;
+    fn new() -> Self;
     // fn storage() ->
     fn is_contiguous(&self) -> bool;
+    fn is_transposed(&self) -> bool;
 
     // access methods
     fn storage_offset(&self) -> isize;
 
     // Props
-    fn dim(&self) -> i32;
+    fn n_dimension(&self) -> i32;
     fn size(&self, dim: i32) -> i64;
     fn stride(&self, dim: i32) -> i64;
     fn data(&self) -> *mut T;
+
+    /// methods with _ will mutate itself
+    /// methods without _ will create new Tensor
+    /// follow the same path as Pytorch
+    fn transpose_(&mut self, dim1: i32, dim2: i32) -> &mut Self;
+    fn transpose(&self, dim1: i32, dim2: i32) -> Self;
 }
 
 // The reason why defining different types TensorImpl is that
@@ -59,8 +70,9 @@ macro_rules! impl_tensor_impl {
         }
 
         impl TensorImpl for $impl_name {
-            fn as_ptr(&self) -> *const at_TensorImpl {
-                self.tensor_impl as *const at_TensorImpl
+            fn as_ptr(&self) -> *mut at_TensorImpl {
+                // self.tensor_impl as *const at_TensorImpl
+                self.tensor_impl
             }
 
             fn as_mut_ptr(&mut self) -> *mut at_TensorImpl {
@@ -116,11 +128,18 @@ macro_rules! impl_tensor_impl {
                 ret == 1
             }
 
+            fn is_transposed(&self) -> bool {
+                let ret = unsafe { concat_idents!($prefix, isTransposed)(self.as_ptr()) };
+                ret == 1
+            }
+
+            // access methods
             fn storage_offset(&self) -> isize {
                 unsafe { concat_idents!($prefix, storageOffset)(self.as_ptr()) }
             }
 
-            fn dim(&self) -> i32 {
+            // Props
+            fn n_dimension(&self) -> i32 {
                 unsafe { concat_idents!($prefix, nDimension)(self.as_ptr()) }
             }
 
@@ -134,6 +153,26 @@ macro_rules! impl_tensor_impl {
 
             fn data(&self) -> *mut $type_name {
                 unsafe { concat_idents!($prefix, data)(self.as_ptr()) }
+            }
+
+            fn transpose_(&mut self, dim1: i32, dim2: i32) -> &mut Self {
+                unsafe {
+                    concat_idents!($prefix, transpose)(
+                        self.as_mut_ptr(),
+                        ptr::null_mut(),
+                        dim1,
+                        dim2,
+                    )
+                };
+                self
+            }
+
+            fn transpose(&self, dim1: i32, dim2: i32) -> Self {
+                let mut ret = Self::new();
+                unsafe {
+                    concat_idents!($prefix, transpose)(self.as_ptr(), ret.as_mut_ptr(), dim1, dim2)
+                };
+                ret
             }
         }
     };
@@ -158,7 +197,7 @@ mod tests {
     fn new_float_tensor() {
         let _t = Tensor::<Float>::new();
         assert_eq!(_t.is_contiguous(), true);
-        println!("{}", _t.dim());
+        println!("{}", _t.n_dimension());
         // let _t = Tensor::<f32>::new();
         // let _t = Tensor::<f32>::new();
     }
