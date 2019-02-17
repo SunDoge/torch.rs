@@ -38,6 +38,8 @@ pub trait StorageGeneric<T> {
 // Maybe this should be merge to StorageGeneric
 pub trait StorageCopy<T> {
     fn raw_copy(&mut self, src: *mut T);
+    fn copy(&mut self, src: *mut c10_StorageImpl);
+    fn copy_float(&mut self, src: &mut FloatStorage);
 }
 
 macro_rules! impl_storage {
@@ -95,11 +97,30 @@ macro_rules! impl_storage {
                     concat_idents!($prefix, rawCopy)(self.as_mut_ptr(), src);
                 }
             }
+
+            fn copy(&mut self, src: *mut c10_StorageImpl) {
+                unsafe {
+                    concat_idents!($prefix, copy)(self.as_mut_ptr(), src);
+                }
+            }
+
+            fn copy_float(&mut self, src: &mut FloatStorage) {
+                unsafe {
+                    concat_idents!($prefix, copy)(self.as_mut_ptr(), src.as_mut_ptr());
+                }
+            }
         }
     };
 }
 
 impl_storage!(THFloatStorage_, FloatStorageImpl, FloatStorage, Float, f32);
+impl_storage!(THDoubleStorage_, DoubleStorageImpl, DoubleStorage, Double, f64);
+impl_storage!(THHalfStorage_, HalfStorageImpl, HalfStorage, Half, c10_Half);
+impl_storage!(THByteStorage_, ByteStorageImpl, ByteStorage, Byte, u8);
+impl_storage!(THCharStorage_, CharStorageImpl, CharStorage, Char, i8);
+impl_storage!(THShortStorage_, ShortStorageImpl, ShortStorage, Short, i16);
+impl_storage!(THIntStorage_, IntStorageImpl, IntStorage, Int, i32);
+impl_storage!(THLongStorage_, LongStorageImpl, LongStorage, Long, i64);
 
 #[cfg(test)]
 mod tests {
