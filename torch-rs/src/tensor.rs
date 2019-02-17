@@ -1,35 +1,37 @@
 pub mod op;
 pub mod type_id;
 
-use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::ptr;
-use std::rc::Rc;
 use torch_sys::*;
+use crate::intrusive_ptr::{IntrusivePtr, WrappedPtr};
 
 /// FloatTesnorImpl: TensorImpl
 /// DoubleTensorImpl: TensorImpl
 /// Tensor(impl TensorImpl)
-pub trait TensorImpl {
-    /// This fn should return *const at_TensorImpl,
-    /// but c functions accept *mut as *const,
-    /// so for convinent, just return *mut at_Tensor, but using &self
-    fn as_ptr(&self) -> *mut at_TensorImpl;
-    fn as_mut_ptr(&mut self) -> *mut at_TensorImpl;
-}
+// pub trait TensorImpl {
+//     /// This fn should return *const at_TensorImpl,
+//     /// but c functions accept *mut as *const,
+//     /// so for convinent, just return *mut at_Tensor, but using &self
+//     fn as_ptr(&self) -> *mut at_TensorImpl;
+//     fn as_mut_ptr(&mut self) -> *mut at_TensorImpl;
+// }
 
 pub struct Tensor<T> {
-    tensor_impl: Rc<RefCell<TensorImpl>>,
+    // tensor_impl: Rc<RefCell<TensorImpl>>,
+    tensor_impl: IntrusivePtr<at_TensorImpl>,
     phantom: PhantomData<T>,
 }
 
 impl<T> Tensor<T> {
     fn as_ptr(&self) -> *mut at_TensorImpl {
-        self.tensor_impl.borrow().as_ptr()
+        // self.tensor_impl.borrow().as_ptr()
+        self.tensor_impl.as_ptr()
     }
 
     fn as_mut_ptr(&mut self) -> *mut at_TensorImpl {
-        self.tensor_impl.borrow_mut().as_mut_ptr()
+        // self.tensor_impl.borrow_mut().as_mut_ptr()
+        self.tensor_impl.as_mut_ptr()
     }
 }
 
@@ -69,7 +71,19 @@ macro_rules! impl_tensor {
             tensor_impl: *mut at_TensorImpl,
         }
 
-        impl TensorImpl for $impl_name {
+        // impl TensorImpl for $impl_name {
+        //     fn as_ptr(&self) -> *mut at_TensorImpl {
+        //         // self.tensor_impl as *const at_TensorImpl
+        //         self.tensor_impl
+        //     }
+
+        //     fn as_mut_ptr(&mut self) -> *mut at_TensorImpl {
+        //         self.tensor_impl
+        //     }
+        // }
+        impl WrappedPtr for $impl_name {
+            type Ptr = at_TensorImpl;
+
             fn as_ptr(&self) -> *mut at_TensorImpl {
                 // self.tensor_impl as *const at_TensorImpl
                 self.tensor_impl
@@ -118,7 +132,8 @@ macro_rules! impl_tensor {
         impl TensorGeneric<$type_name> for Tensor<$type_name> {
             fn new() -> Tensor<$type_name> {
                 Tensor {
-                    tensor_impl: Rc::new(RefCell::new($impl_name::new())),
+                    // tensor_impl: Rc::new(RefCell::new($impl_name::new())),
+                    tensor_impl: IntrusivePtr::new($impl_name::new()),
                     phantom: PhantomData,
                 }
             }

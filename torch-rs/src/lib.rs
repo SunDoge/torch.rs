@@ -2,6 +2,7 @@
 
 pub mod storage;
 pub mod tensor;
+pub mod intrusive_ptr;
 
 #[cfg(test)]
 mod tests {
