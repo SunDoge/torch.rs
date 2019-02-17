@@ -1,10 +1,10 @@
 pub mod op;
 pub mod type_id;
 
+use crate::intrusive_ptr::{IntrusivePtr, WrappedPtr};
 use std::marker::PhantomData;
 use std::ptr;
 use torch_sys::*;
-use crate::intrusive_ptr::{IntrusivePtr, WrappedPtr};
 
 /// FloatTesnorImpl: TensorImpl
 /// DoubleTensorImpl: TensorImpl

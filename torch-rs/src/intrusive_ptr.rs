@@ -8,11 +8,11 @@ pub trait WrappedPtr {
 }
 
 pub struct IntrusivePtr<T> {
-    ptr: Rc<RefCell<WrappedPtr<Ptr=T>>>,
+    ptr: Rc<RefCell<WrappedPtr<Ptr = T>>>,
 }
 
 impl<T> IntrusivePtr<T> {
-    pub fn new(value: impl WrappedPtr<Ptr=T> + 'static) -> Self {
+    pub fn new(value: impl WrappedPtr<Ptr = T> + 'static) -> Self {
         IntrusivePtr {
             ptr: Rc::new(RefCell::new(value)),
         }
@@ -26,4 +26,3 @@ impl<T> IntrusivePtr<T> {
         self.ptr.borrow_mut().as_mut_ptr()
     }
 }
-

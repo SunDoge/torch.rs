@@ -1,8 +1,8 @@
 #![feature(concat_idents)]
 
+pub mod intrusive_ptr;
 pub mod storage;
 pub mod tensor;
-pub mod intrusive_ptr;
 
 #[cfg(test)]
 mod tests {
