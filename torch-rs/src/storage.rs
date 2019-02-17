@@ -21,6 +21,16 @@ pub struct Storage<T> {
     phantom: PhantomData<T>,
 }
 
+impl<T> From<IntrusivePtr<c10_StorageImpl>> for Storage<T> {
+    fn from(ptr: IntrusivePtr<c10_StorageImpl>) -> Storage<T> {
+        Storage {
+            storage_impl: ptr,
+            phantom: PhantomData
+        }
+    }
+}
+
+
 impl<T> Storage<T> {
     fn as_ptr(&self) -> *mut c10_StorageImpl {
         // self.storage_impl.borrow().as_ptr()
@@ -32,6 +42,7 @@ impl<T> Storage<T> {
         self.storage_impl.as_mut_ptr()
     }
 }
+
 
 pub trait StorageGeneric<T> {
     fn new() -> Storage<T>;
@@ -98,6 +109,12 @@ macro_rules! impl_storage {
         impl From<*mut c10_StorageImpl> for $impl_name {
             fn from(ptr: *mut c10_StorageImpl) -> Self {
                 $impl_name { storage_impl: ptr }
+            }
+        }
+
+        impl From<*mut c10_StorageImpl> for Storage<$type_name> {
+            fn from(ptr: *mut c10_StorageImpl) -> Self {
+                Self::from(IntrusivePtr::new($impl_name::from(ptr)))
             }
         }
 

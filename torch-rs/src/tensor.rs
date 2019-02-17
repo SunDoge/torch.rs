@@ -2,6 +2,7 @@ pub mod op;
 pub mod type_id;
 
 use crate::intrusive_ptr::{IntrusivePtr, WrappedPtr};
+use crate::storage::*;
 use std::marker::PhantomData;
 use std::ptr;
 use torch_sys::*;
@@ -42,6 +43,7 @@ pub trait TensorGeneric<T> {
     fn is_transposed(&self) -> bool;
 
     // access methods
+    fn storage(&self) -> Storage<T>;
     fn storage_offset(&self) -> isize;
 
     // Props
@@ -149,6 +151,11 @@ macro_rules! impl_tensor {
             }
 
             // access methods
+            fn storage(&self) -> Storage<$type_name> {
+                let ptr = unsafe { concat_idents!($prefix, storage)(self.as_ptr()) };
+                Storage::from(ptr)
+            }
+
             fn storage_offset(&self) -> isize {
                 unsafe { concat_idents!($prefix, storageOffset)(self.as_ptr()) }
             }
