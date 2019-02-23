@@ -2,6 +2,7 @@ pub mod math;
 pub mod op;
 pub mod type_id;
 pub mod vector;
+pub mod context;
 
 use crate::intrusive_ptr::{IntrusivePtr, WrappedPtr};
 use crate::storage::*;

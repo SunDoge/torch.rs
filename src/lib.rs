@@ -1,5 +1,8 @@
 #![feature(concat_idents)]
 
+#[macro_use]
+extern crate lazy_static;
+
 pub mod intrusive_ptr;
 pub mod storage;
 pub mod tensor;

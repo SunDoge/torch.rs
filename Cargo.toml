@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 torch-sys = { path = "torch-sys" }
+lazy_static = "1.2"
