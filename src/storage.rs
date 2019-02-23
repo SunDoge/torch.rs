@@ -13,6 +13,8 @@ use torch_sys::*;
 //     fn as_mut_ptr(&mut self) -> *mut c10_StorageImpl;
 // }
 
+/// A torch.Storage is a contiguous, one-dimensional array of a single data type.
+/// Every torch.Tensor has a corresponding storage of the same data type.
 pub struct Storage<T> {
     storage_impl: IntrusivePtr<c10_StorageImpl>,
     phantom: PhantomData<T>,
@@ -42,8 +44,9 @@ impl<T> Storage<T> {
 pub trait StorageGeneric<T> {
     fn new() -> Storage<T>;
     fn new_with_size(size: usize) -> Storage<T>;
-    fn data(&self) -> *mut T;
+    fn data_ptr(&self) -> *mut T;
     fn size(&self) -> usize;
+    fn tolist(&self) -> &[T];
 }
 
 // Maybe this should be merge to StorageGeneric
@@ -130,13 +133,17 @@ macro_rules! impl_storage {
                 }
             }
 
-            fn data(&self) -> *mut $type_name {
+            fn data_ptr(&self) -> *mut $type_name {
                 unsafe { concat_idents!($prefix, data)(self.as_ptr()) }
             }
 
             fn size(&self) -> usize {
                 let size = unsafe { concat_idents!($prefix, size)(self.as_ptr()) };
                 size as usize
+            }
+
+            fn tolist(&self) -> &[$type_name] {
+                unsafe { std::slice::from_raw_parts(self.data_ptr(), self.size()) }
             }
         }
 
@@ -188,8 +195,6 @@ mod tests {
         println!("size: {}", storage.size());
         storage.raw_copy(data.as_mut_ptr());
         println!("size: {}", storage.size());
-        println!("{:?}", unsafe {
-            std::slice::from_raw_parts(storage.data(), storage.size())
-        });
+        println!("{:?}", storage.tolist());
     }
 }
