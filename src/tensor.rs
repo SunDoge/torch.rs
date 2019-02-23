@@ -1,6 +1,6 @@
+pub mod math;
 pub mod op;
 pub mod type_id;
-pub mod math;
 
 use crate::intrusive_ptr::{IntrusivePtr, WrappedPtr};
 use crate::storage::*;

@@ -28,4 +28,3 @@ macro_rules! impl_tensor_math {
 
 impl_tensor_math!(THFloatTensor_, FloatTensor, Float);
 impl_tensor_math!(THDoubleTensor_, DoubleTensor, Double);
-

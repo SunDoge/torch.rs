@@ -7,4 +7,4 @@ edition = "2018"
 [dependencies]
 
 [build-dependencies]
-bindgen = { git = "https://github.com/rust-lang/rust-bindgen.git" }
+bindgen = "0.47"

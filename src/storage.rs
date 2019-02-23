@@ -1,8 +1,5 @@
 use crate::intrusive_ptr::{IntrusivePtr, WrappedPtr};
-use std::cell::RefCell;
 use std::marker::PhantomData;
-use std::ptr;
-use std::rc::Rc;
 use torch_sys::*;
 
 /// FloatTesnorImpl: TensorImpl
@@ -25,11 +22,10 @@ impl<T> From<IntrusivePtr<c10_StorageImpl>> for Storage<T> {
     fn from(ptr: IntrusivePtr<c10_StorageImpl>) -> Storage<T> {
         Storage {
             storage_impl: ptr,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
-
 
 impl<T> Storage<T> {
     fn as_ptr(&self) -> *mut c10_StorageImpl {
@@ -42,7 +38,6 @@ impl<T> Storage<T> {
         self.storage_impl.as_mut_ptr()
     }
 }
-
 
 pub trait StorageGeneric<T> {
     fn new() -> Storage<T>;
