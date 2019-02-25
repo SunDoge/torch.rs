@@ -1,11 +1,14 @@
+pub mod context;
+pub mod device;
 pub mod math;
 pub mod op;
+pub mod storage;
 pub mod type_id;
 pub mod vector;
-pub mod context;
 
+use self::device::{CPU, CUDA};
+use self::storage::*;
 use crate::intrusive_ptr::{IntrusivePtr, WrappedPtr};
-use crate::storage::*;
 use std::marker::PhantomData;
 use std::ptr;
 use torch_sys::*;
@@ -21,13 +24,14 @@ use torch_sys::*;
 //     fn as_mut_ptr(&mut self) -> *mut at_TensorImpl;
 // }
 
-pub struct Tensor<T> {
+pub struct TensorBase<T, C> {
     // tensor_impl: Rc<RefCell<TensorImpl>>,
     tensor_impl: IntrusivePtr<at_TensorImpl>,
-    phantom: PhantomData<T>,
+    tensor_type: PhantomData<T>,
+    tensor_context: PhantomData<C>,
 }
 
-impl<T> Tensor<T> {
+impl<T, C> TensorBase<T, C> {
     fn as_ptr(&self) -> *mut at_TensorImpl {
         // self.tensor_impl.borrow().as_ptr()
         self.tensor_impl.as_ptr()
@@ -39,7 +43,7 @@ impl<T> Tensor<T> {
     }
 }
 
-pub trait TensorGeneric<T> {
+pub trait TensorGeneric<T, C> {
     fn new() -> Self;
     // fn storage() ->
     fn is_contiguous(&self) -> bool;
@@ -70,10 +74,11 @@ pub trait TensorGeneric<T> {
 macro_rules! impl_tensor {
     ($prefix:ident, $impl_name:ident, $tensor_name:ident, $type_name:ident, $type:ident) => {
         pub type $type_name = $type;
-        pub type $tensor_name = Tensor<$type_name>;
+        pub type $tensor_name = TensorBase<$type_name>;
 
         pub struct $impl_name {
             tensor_impl: *mut at_TensorImpl,
+            storage: Storage<$type_name>,
         }
 
         // impl TensorImpl for $impl_name {
@@ -134,9 +139,9 @@ macro_rules! impl_tensor {
         //     }
         // }
 
-        impl TensorGeneric<$type_name> for Tensor<$type_name> {
-            fn new() -> Tensor<$type_name> {
-                Tensor {
+        impl TensorGeneric<$type_name> for TensorBase<$type_name> {
+            fn new() -> TensorBase<$type_name> {
+                TensorBase {
                     // tensor_impl: Rc::new(RefCell::new($impl_name::new())),
                     tensor_impl: IntrusivePtr::new($impl_name::new()),
                     phantom: PhantomData,
@@ -221,7 +226,7 @@ mod tests {
 
     #[test]
     fn new_float_tensor() {
-        let _t = Tensor::<Float>::new();
+        let _t = TensorBase::<Float>::new();
         assert_eq!(_t.is_contiguous(), true);
         println!("{}", _t.n_dimension());
         // let _t = Tensor::<f32>::new();
@@ -230,7 +235,7 @@ mod tests {
 
     #[test]
     fn new_double_tensor() {
-        let _t = Tensor::<Double>::new();
+        let _t = TensorBase::<Double>::new();
         assert_eq!(_t.is_contiguous(), true);
     }
 }
