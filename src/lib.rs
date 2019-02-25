@@ -4,7 +4,6 @@
 extern crate lazy_static;
 
 pub mod intrusive_ptr;
-pub mod storage;
 pub mod tensor;
 
 #[cfg(test)]

@@ -1,9 +1,9 @@
+// use std::sync::Mutex;
 use torch_sys::*;
-use std::sync::Mutex;
 
-lazy_static!{
+lazy_static! {
     // static ref STATE: Mutex<State> = Mutex::new(State::new().init());
-    static ref STATE: State = State::new().init();
+    static ref STATE: State = State::new();
 }
 
 pub struct State {
@@ -12,14 +12,12 @@ pub struct State {
 
 impl State {
     pub fn new() -> State {
-        State {
-            ptr: unsafe { THCState_alloc() },
+        let ptr = unsafe { THCState_alloc() };
+        unsafe {
+            THCudaInit(ptr);
         }
-    }
 
-    pub fn init(self) -> Self {
-        unsafe { THCudaInit(self.ptr) };
-        self
+        State { ptr }
     }
 
     pub fn as_ptr(&self) -> *mut THCState {
@@ -31,8 +29,8 @@ impl State {
     }
 }
 
-unsafe impl Sync for State{}
-unsafe impl Send for State{}
+unsafe impl Sync for State {}
+unsafe impl Send for State {}
 
 impl Drop for State {
     fn drop(&mut self) {
@@ -58,8 +56,8 @@ mod tests {
 
             // let arc_ptr = std::sync::Arc::new(ptr);
             // THCudaInit(_state1.ptr);
-            
-            let n = 100;
+
+            let n = 10;
             let mut children = Vec::with_capacity(n);
             for i in 0..n {
                 children.push(std::thread::spawn(|| {
@@ -67,7 +65,7 @@ mod tests {
                     //println!("num devices: {}", prop);
                     let t1 = THCudaTensor_newWithSize1d(STATE.as_ptr(), 1);
                     THCudaTensor_free(STATE.as_ptr(), t1);
-                })) ;
+                }));
             }
 
             for child in children {

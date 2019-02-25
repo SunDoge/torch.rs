@@ -7,7 +7,7 @@ pub trait TensorMath<T> {
 
 macro_rules! impl_tensor_math {
     ($prefix:ident, $tensor_name:ident, $type_name:ident) => {
-        impl TensorMath<$type_name> for Tensor<$type_name> {
+        impl TensorMath<$type_name> for TensorBase<$type_name> {
             fn add(&mut self, t: &mut Self, value: $type_name) {
                 unsafe {
                     concat_idents!($prefix, add)(self.as_mut_ptr(), t.as_mut_ptr(), value);
@@ -15,7 +15,7 @@ macro_rules! impl_tensor_math {
             }
         }
 
-        impl std::ops::Add for Tensor<$type_name> {
+        impl std::ops::Add for TensorBase<$type_name> {
             type Output = Self;
             // they don't need to be mut
             fn add(mut self, mut other: Self) -> Self {
