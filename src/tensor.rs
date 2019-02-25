@@ -102,7 +102,8 @@ macro_rules! impl_tensor {
         impl Drop for $impl_name {
             fn drop(&mut self) {
                 unsafe {
-                    concat_idents!($prefix, free)(self.as_mut_ptr());
+                    // concat_idents!($prefix, free)(self.as_mut_ptr());
+                    THHalfTensor_free(self.as_mut_ptr());
                 }
             }
         }
