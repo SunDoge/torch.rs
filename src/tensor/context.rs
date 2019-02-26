@@ -3,7 +3,7 @@ use torch_sys::*;
 
 lazy_static! {
     // static ref STATE: Mutex<State> = Mutex::new(State::new().init());
-    static ref STATE: State = State::new();
+    pub static ref STATE: State = State::new();
 }
 
 pub struct State {

@@ -1,8 +1,9 @@
-use super::device::{CPU, CUDA};
-use crate::intrusive_ptr::{IntrusivePtr, WrappedPtr};
+use super::device::CPU;
+// use crate::intrusive_ptr::{IntrusivePtr};
+use std::cell::RefCell;
 use std::marker::PhantomData;
+use std::rc::Rc;
 use torch_sys::*;
-use super::context::STATE;
 
 /// FloatTesnorImpl: TensorImpl
 /// DoubleTensorImpl: TensorImpl
@@ -18,39 +19,82 @@ use super::context::STATE;
 /// A torch.Storage is a contiguous, one-dimensional array of a single data type.
 /// Every torch.Tensor has a corresponding storage of the same data type.
 pub struct StorageBase<T, C> {
-    storage_impl: IntrusivePtr<c10_StorageImpl>,
-    storage_type: PhantomData<T>,
-    storage_context: PhantomData<C>,
+    storage_impl: Rc<RefCell<StorageImpl>>,
+    _type: PhantomData<T>,
+    _context: PhantomData<C>,
 }
 
-pub type Storage = StorageBase<T, CPU>;
-pub type CudaStorage = StorageBase<T, CUDA>;
+pub struct StorageImpl {
+    ptr: *mut c10_StorageImpl,
+}
 
-impl<T, C> From<IntrusivePtr<c10_StorageImpl>> for StorageBase<T, C> {
-    fn from(ptr: IntrusivePtr<c10_StorageImpl>) -> StorageBase<T, C> {
-        Storage {
-            storage_impl: ptr,
-            storage_type: PhantomData,
-            storage_context: PhantomData,
+impl StorageImpl {
+    pub fn new(ptr: *mut c10_StorageImpl) -> StorageImpl {
+        StorageImpl { ptr }
+    }
+
+    pub fn as_ptr(&self) -> *mut c10_StorageImpl {
+        self.ptr
+    }
+
+    pub fn as_mut_ptr(&mut self) -> *mut c10_StorageImpl {
+        self.ptr
+    }
+}
+
+impl Drop for StorageImpl {
+    fn drop(&mut self) {
+        unsafe {
+            THStorage_free(self.ptr);
         }
     }
 }
 
+pub type Storage<T> = StorageBase<T, CPU>;
+
+// impl<T, C> From<IntrusivePtr<c10_StorageImpl>> for StorageBase<T, C> {
+//     fn from(ptr: IntrusivePtr<c10_StorageImpl>) -> StorageBase<T, C> {
+//         Storage {
+//             storage_impl: ptr,
+//             storage_type: PhantomData,
+//             storage_context: PhantomData,
+//         }
+//     }
+// }
+
+// impl<T, C> From<*mut c10_StorageImpl> for StorageBase<T, C> {
+//     fn from(ptr: *mut c10_StorageImpl) -> Self {
+//         Storage {
+//             storage_impl: Rc::new(RefCell::new(StorageImpl::new(ptr))),
+//             _type: PhantomData,
+//             _context: PhantomData,
+//         }
+//     }
+// }
+
 impl<T, C> StorageBase<T, C> {
-    fn as_ptr(&self) -> *mut c10_StorageImpl {
-        // self.storage_impl.borrow().as_ptr()
-        self.storage_impl.as_ptr()
+    pub fn as_ptr(&self) -> *mut c10_StorageImpl {
+        self.storage_impl.as_ref().borrow().as_ptr()
     }
 
-    fn as_mut_ptr(&mut self) -> *mut c10_StorageImpl {
-        // self.storage_impl.borrow_mut().as_mut_ptr()
-        self.storage_impl.as_mut_ptr()
+    pub fn as_mut_ptr(&mut self) -> *mut c10_StorageImpl {
+        self.storage_impl.as_ref().borrow_mut().as_mut_ptr()
+    }
+}
+
+impl<T, C> From<*mut c10_StorageImpl> for StorageBase<T, C> {
+    fn from(ptr: *mut c10_StorageImpl) -> Self {
+        StorageBase {
+            storage_impl: Rc::new(RefCell::new(StorageImpl::new(ptr))),
+            _type: PhantomData,
+            _context: PhantomData,
+        }
     }
 }
 
 pub trait StorageGeneric<T, C> {
-    fn new() -> Storage<T, C>;
-    fn new_with_size(size: usize) -> Storage<T, C>;
+    fn new() -> StorageBase<T, C>;
+    fn new_with_size(size: usize) -> StorageBase<T, C>;
     fn data_ptr(&self) -> *mut T;
     fn size(&self) -> usize;
     fn tolist(&self) -> &[T];
@@ -60,84 +104,23 @@ pub trait StorageGeneric<T, C> {
 pub trait StorageCopy<T, C> {
     fn raw_copy(&mut self, src: *mut T);
     fn copy(&mut self, src: *mut c10_StorageImpl);
-    fn copy_float(&mut self, src: &mut FloatStorage);
+    fn copy_float(&mut self, src: &mut StorageBase<Float, C>);
 }
 
 macro_rules! impl_storage {
-    ($prefix:ident, $impl_name:ident, $storage_name:ident, $type_name:ident, $type:ident) => {
+    ($prefix:ident, $storage_name:ident, $type_name:ident, $type:ident) => {
         pub type $type_name = $type;
         pub type $storage_name = Storage<$type_name>;
 
-        pub struct $impl_name {
-            storage_impl: *mut c10_StorageImpl,
-        }
-
-        // impl StorageImpl for $impl_name {
-        //     fn as_ptr(&self) -> *mut c10_StorageImpl {
-        //         // self.tensor_impl as *const c10_StorageImpl
-        //         self.storage_impl
-        //     }
-
-        //     fn as_mut_ptr(&mut self) -> *mut c10_StorageImpl {
-        //         self.storage_impl
-        //     }
-        // }
-
-        impl WrappedPtr for $impl_name {
-            type Ptr = c10_StorageImpl;
-            fn as_ptr(&self) -> *mut c10_StorageImpl {
-                // self.tensor_impl as *const c10_StorageImpl
-                self.storage_impl
-            }
-
-            fn as_mut_ptr(&mut self) -> *mut c10_StorageImpl {
-                self.storage_impl
-            }
-        }
-
-        impl Drop for $impl_name {
-            fn drop(&mut self) {
-                unsafe {
-                    concat_idents!($prefix, free)(self.as_mut_ptr());
-                }
-            }
-        }
-
-        impl $impl_name {
-            pub fn new() -> Self {
-                $impl_name {
-                    storage_impl: unsafe { concat_idents!($prefix, new)() },
-                }
-            }
-        }
-
-        impl From<*mut c10_StorageImpl> for $impl_name {
-            fn from(ptr: *mut c10_StorageImpl) -> Self {
-                $impl_name { storage_impl: ptr }
-            }
-        }
-
-        impl From<*mut c10_StorageImpl> for Storage<$type_name> {
-            fn from(ptr: *mut c10_StorageImpl) -> Self {
-                Self::from(IntrusivePtr::new($impl_name::from(ptr)))
-            }
-        }
-
-        impl StorageGeneric<$type_name> for Storage<$type_name> {
+        impl StorageGeneric<$type_name, CPU> for Storage<$type_name> {
             fn new() -> Self {
-                Storage {
-                    // storage_impl: Rc::new(RefCell::new($impl_name::new())),
-                    storage_impl: IntrusivePtr::new($impl_name::new()),
-                    phantom: PhantomData,
-                }
+                let ptr = unsafe { concat_idents!($prefix, new)() };
+                Storage::from(ptr)
             }
 
             fn new_with_size(size: usize) -> Self {
                 let ptr = unsafe { concat_idents!($prefix, newWithSize)(size as isize) };
-                Storage {
-                    storage_impl: IntrusivePtr::new($impl_name::from(ptr)),
-                    phantom: PhantomData,
-                }
+                Storage::from(ptr)
             }
 
             fn data_ptr(&self) -> *mut $type_name {
@@ -154,7 +137,7 @@ macro_rules! impl_storage {
             }
         }
 
-        impl StorageCopy<$type_name> for Storage<$type_name> {
+        impl StorageCopy<$type_name, CPU> for Storage<$type_name> {
             fn raw_copy(&mut self, src: *mut $type_name) {
                 unsafe {
                     concat_idents!($prefix, rawCopy)(self.as_mut_ptr(), src);
@@ -169,141 +152,21 @@ macro_rules! impl_storage {
 
             fn copy_float(&mut self, src: &mut FloatStorage) {
                 unsafe {
-                    concat_idents!($prefix, copy)(self.as_mut_ptr(), src.as_mut_ptr());
+                    concat_idents!($prefix, copyFloat)(self.as_mut_ptr(), src.as_mut_ptr());
                 }
             }
         }
     };
 }
 
-macro_rules! impl_cuda_storage {
-    ($prefix:ident, $impl_name:ident, $storage_name:ident, $type_name:ident, $type:ident) => {
-        pub type $type_name = $type;
-        pub type $storage_name = CudaStorage<$type_name>;
-
-        pub struct $impl_name {
-            storage_impl: *mut c10_StorageImpl,
-        }
-
-        // impl StorageImpl for $impl_name {
-        //     fn as_ptr(&self) -> *mut c10_StorageImpl {
-        //         // self.tensor_impl as *const c10_StorageImpl
-        //         self.storage_impl
-        //     }
-
-        //     fn as_mut_ptr(&mut self) -> *mut c10_StorageImpl {
-        //         self.storage_impl
-        //     }
-        // }
-
-        impl WrappedPtr for $impl_name {
-            type Ptr = c10_StorageImpl;
-            fn as_ptr(&self) -> *mut c10_StorageImpl {
-                // self.tensor_impl as *const c10_StorageImpl
-                self.storage_impl
-            }
-
-            fn as_mut_ptr(&mut self) -> *mut c10_StorageImpl {
-                self.storage_impl
-            }
-        }
-
-        impl Drop for $impl_name {
-            fn drop(&mut self) {
-                unsafe {
-                    concat_idents!($prefix, free)(STATE.as_ptr(), self.as_mut_ptr());
-                }
-            }
-        }
-
-        impl $impl_name {
-            pub fn new() -> Self {
-                $impl_name {
-                    storage_impl: unsafe { concat_idents!(STATE.as_ptr(), $prefix, new)() },
-                }
-            }
-        }
-
-        impl From<*mut c10_StorageImpl> for $impl_name {
-            fn from(ptr: *mut c10_StorageImpl) -> Self {
-                $impl_name { storage_impl: ptr }
-            }
-        }
-
-        impl From<*mut c10_StorageImpl> for CudaStorage<$type_name> {
-            fn from(ptr: *mut c10_StorageImpl) -> Self {
-                Self::from(IntrusivePtr::new($impl_name::from(ptr)))
-            }
-        }
-
-        impl StorageGeneric<$type_name> for CudaStorage<$type_name> {
-            fn new() -> Self {
-                Storage {
-                    // storage_impl: Rc::new(RefCell::new($impl_name::new())),
-                    storage_impl: IntrusivePtr::new($impl_name::new()),
-                    storage_type: PhantomData,
-                    storage_context: PhantomData,
-                }
-            }
-
-            fn new_with_size(size: usize) -> Self {
-                let ptr = unsafe { concat_idents!($prefix, newWithSize)(size as isize) };
-                Storage {
-                    storage_impl: IntrusivePtr::new($impl_name::from(ptr)),
-                    phantom: PhantomData,
-                }
-            }
-
-            fn data_ptr(&self) -> *mut $type_name {
-                unsafe { concat_idents!($prefix, data)(self.as_ptr()) }
-            }
-
-            fn size(&self) -> usize {
-                let size = unsafe { concat_idents!($prefix, size)(self.as_ptr()) };
-                size as usize
-            }
-
-            fn tolist(&self) -> &[$type_name] {
-                unsafe { std::slice::from_raw_parts(self.data_ptr(), self.size()) }
-            }
-        }
-
-        impl StorageCopy<$type_name> for Storage<$type_name> {
-            fn raw_copy(&mut self, src: *mut $type_name) {
-                unsafe {
-                    concat_idents!($prefix, rawCopy)(self.as_mut_ptr(), src);
-                }
-            }
-
-            fn copy(&mut self, src: *mut c10_StorageImpl) {
-                unsafe {
-                    concat_idents!($prefix, copy)(self.as_mut_ptr(), src);
-                }
-            }
-
-            fn copy_float(&mut self, src: &mut FloatStorage) {
-                unsafe {
-                    concat_idents!($prefix, copy)(self.as_mut_ptr(), src.as_mut_ptr());
-                }
-            }
-        }
-    };
-}
-
-impl_storage!(THFloatStorage_, FloatStorageImpl, FloatStorage, Float, f32);
-impl_storage!(
-    THDoubleStorage_,
-    DoubleStorageImpl,
-    DoubleStorage,
-    Double,
-    f64
-);
-impl_storage!(THHalfStorage_, HalfStorageImpl, HalfStorage, Half, c10_Half);
-impl_storage!(THByteStorage_, ByteStorageImpl, ByteStorage, Byte, u8);
-impl_storage!(THCharStorage_, CharStorageImpl, CharStorage, Char, i8);
-impl_storage!(THShortStorage_, ShortStorageImpl, ShortStorage, Short, i16);
-impl_storage!(THIntStorage_, IntStorageImpl, IntStorage, Int, i32);
-impl_storage!(THLongStorage_, LongStorageImpl, LongStorage, Long, i64);
+impl_storage!(THFloatStorage_, FloatStorage, Float, f32);
+impl_storage!(THDoubleStorage_, DoubleStorage, Double, f64);
+impl_storage!(THHalfStorage_, HalfStorage, Half, c10_Half);
+impl_storage!(THByteStorage_, ByteStorage, Byte, u8);
+impl_storage!(THCharStorage_, CharStorage, Char, i8);
+impl_storage!(THShortStorage_, ShortStorage, Short, i16);
+impl_storage!(THIntStorage_, IntStorage, Int, i32);
+impl_storage!(THLongStorage_, LongStorage, Long, i64);
 
 #[cfg(test)]
 mod tests {
