@@ -1,5 +1,5 @@
 use super::super::context::STATE;
-use super::super::device::CUDA;
+use super::super::device::{CUDA, CPU};
 use super::super::storage::{StorageBase, StorageCopy, StorageGeneric, StorageImpl};
 use std::cell::RefCell;
 use std::marker::PhantomData;
@@ -52,7 +52,7 @@ macro_rules! impl_storage {
                 }
             }
 
-            fn copy_float(&mut self, src: &mut FloatStorage) {
+            fn copy_float(&mut self, src: &mut StorageBase<Float, CPU>) {
                 unsafe {
                     concat_idents!($prefix, copyFloat)(
                         STATE.as_ptr(),
@@ -77,14 +77,22 @@ impl_storage!(THCudaLongStorage_, LongStorage, Long, i64);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tensor::storage;
+    
 
     #[test]
     fn copy_vec_to_storage() {
         let mut data = vec![1.0, 2.0, 3.0];
         let mut storage = FloatStorage::new_with_size(3);
         println!("size: {}", storage.size());
-        storage.raw_copy(data.as_mut_ptr());
+
+        let mut cpu_storage = storage::FloatStorage::new_with_size(3);
+        cpu_storage.raw_copy(data.as_mut_ptr());
+        storage.copy_float(&mut cpu_storage);
+        // std::thread::sleep_ms(3000);
+
+        // storage.raw_copy(data.as_mut_ptr());
         println!("size: {}", storage.size());
-        println!("{:?}", storage.tolist());
+        // println!("{:?}", storage.tolist());
     }
 }

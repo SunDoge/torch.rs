@@ -45,7 +45,7 @@ mod tests {
     use super::*;
     use torch_sys::*;
 
-    #[test]
+    // #[test]
     fn multi_state() {
         // let mut _state1 = State::new();
         // let _state2 = State::new();

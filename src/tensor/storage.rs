@@ -104,7 +104,7 @@ pub trait StorageGeneric<T, C> {
 pub trait StorageCopy<T, C> {
     fn raw_copy(&mut self, src: *mut T);
     fn copy(&mut self, src: *mut c10_StorageImpl);
-    fn copy_float(&mut self, src: &mut StorageBase<Float, C>);
+    fn copy_float(&mut self, src: &mut StorageBase<Float, CPU>);
 }
 
 macro_rules! impl_storage {
